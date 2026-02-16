@@ -3,28 +3,51 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const [location, setLocation] = useState<any>(null);
+  const [loadingLocation, setLoadingLocation] = useState(true);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        () => {
-          alert("Location permission is required.");
-        }
-      );
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported by this browser.");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+
+        console.log("Accuracy in meters:", accuracy);
+
+        if (accuracy > 100) {
+          alert(
+            "Weak GPS signal detected. For better accuracy, please move outdoors and refresh the page."
+          );
+        }
+
+        setLocation({
+          latitude,
+          longitude,
+          accuracy,
+        });
+
+        setLoadingLocation(false);
+      },
+      (error) => {
+        alert("Location permission is required.");
+        setLoadingLocation(false);
+      },
+      {
+        enableHighAccuracy: true, // 🔥 forces GPS usage
+        timeout: 20000,           // wait up to 20 seconds
+        maximumAge: 0,            // do NOT use cached location
+      }
+    );
   }, []);
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
     if (!location) {
-      alert("Please allow location access.");
+      alert("Please allow location access and wait for detection.");
       return;
     }
 
@@ -33,6 +56,7 @@ export default function Home() {
       phone: e.target.phone.value,
       latitude: location.latitude,
       longitude: location.longitude,
+      accuracy: location.accuracy,
     };
 
     await fetch("/api/submit", {
@@ -73,7 +97,7 @@ export default function Home() {
             color: "#333",
           }}
         >
-          Job Application Form
+          Employment Application Form
         </h1>
 
         <p
@@ -81,12 +105,23 @@ export default function Home() {
             fontSize: "14px",
             textAlign: "center",
             color: "#666",
-            marginBottom: "30px",
+            marginBottom: "20px",
           }}
         >
-          Kindly fillup all required informations and submit. Our HR team will
-          contact you shortly.
+          Please enter details and submit the form, our HR team will contact you shortly.
         </p>
+
+        {loadingLocation && (
+          <p style={{ fontSize: "13px", color: "#888", textAlign: "center" }}>
+            Detecting your location...
+          </p>
+        )}
+
+        {location && (
+          <p style={{ fontSize: "12px", color: "green", textAlign: "center" }}>
+            Location detected (Accuracy: {Math.round(location.accuracy)} meters)
+          </p>
+        )}
 
         <form onSubmit={handleSubmit}>
           <input
